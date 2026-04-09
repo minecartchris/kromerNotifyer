@@ -11,6 +11,7 @@
     "node": ">=18"
   },
   "dependencies": {
+    "kromer": "^1.6.2",
     "node-notifier": "^10.0.1"
   }
 }
