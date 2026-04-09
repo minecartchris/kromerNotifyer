@@ -1,0 +1,16 @@
+{
+  "name": "kromer-notifier",
+  "version": "1.0.0",
+  "description": "Polls the Kromer node every N minutes and sends desktop notifications on new transactions for watched addresses.",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "node-notifier": "^10.0.1"
+  }
+}
