@@ -140,13 +140,13 @@ function handleTxn(address, flags, tx) {
           : '';
         notify(
           'Income received',
-          `${address} +${tx.value} KRO from ${tx.from}${meta}`
+          `${address} ${tx.value} KRO from ${tx.from}${meta}`
         );
       } else if (from === address && flags.paymentsOut) {
         const dest = tx.sent_metaname
           ? `${tx.sent_metaname}@${tx.sent_name}`
           : tx.to;
-        notify('Payment sent', `${address} -${tx.value} KRO to ${dest}`);
+        notify('Payment sent', `${address} ${tx.value} KRO to ${dest}`);
       }
       break;
     }
