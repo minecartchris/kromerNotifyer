@@ -1,0 +1,12 @@
+{
+  "apiBase": "https://kromer.reconnected.cc/api/krist",
+  "pollIntervalMs": 120000,
+  "watchAddresses": {
+    "kexampleaa": {
+      "income": true,
+      "paymentsOut": true,
+      "namePurchases": true,
+      "nameTransfers": true
+    }
+  }
+}
