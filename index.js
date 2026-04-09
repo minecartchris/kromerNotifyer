@@ -93,12 +93,19 @@ function drawStatus() {
     default:
       state = 'starting…';
   }
-  const line =
+  const left =
     `[watching ${watched.size} | tx seen: ${txSeen} | notifications: ${eventsTotal}] ${state}`;
+  // Highlighted control hint using ANSI reverse video.
+  const controlsPlain = ' Ctrl+X  save & quit';
+  const cols = process.stdout.columns || 120;
+  // Truncate left half if there isn't room for both, keep controls visible.
+  const leftMax = Math.max(0, cols - controlsPlain.length - 2);
+  const leftTrim = left.length > leftMax ? left.slice(0, leftMax) : left;
   ansi('\x1b7');
   ansi(`\x1b[${termRows};1H`);
   ansi('\x1b[2K');
-  process.stdout.write(line.slice(0, (process.stdout.columns || 120) - 1));
+  process.stdout.write(leftTrim + '   ');
+  process.stdout.write('\x1b[7m Ctrl+X \x1b[0m save & quit');
   ansi('\x1b8');
 }
 
@@ -340,13 +347,70 @@ function scheduleReconnect() {
     drawStatus();
   });
 
-  const shutdown = () => {
+  const shutdown = (reason = 'signal') => {
     wsShouldRun = false;
     stopPolling();
     teardownRegion();
-    console.log('Stopped.');
+    console.log(`Stopped (${reason}).`);
     process.exit(0);
   };
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
+
+  // Fetch current balances + lastSeen ids, write end.balance.json, then exit.
+  const saveAndQuit = async () => {
+    log('Ctrl+X received — saving end.balance.json…');
+    const out = {
+      endedAt: new Date().toISOString(),
+      endpoint: SYNC_NODE,
+      addresses: {},
+    };
+    for (const address of watched.keys()) {
+      try {
+        const res = await api.addresses.get(address);
+        out.addresses[address] = {
+          balance: res?.balance ?? null,
+          totalin: res?.totalin ?? null,
+          totalout: res?.totalout ?? null,
+          lastSeenTxId: lastSeen.get(address) ?? 0,
+        };
+      } catch (err) {
+        out.addresses[address] = {
+          error: err.message || String(err),
+          lastSeenTxId: lastSeen.get(address) ?? 0,
+        };
+      }
+    }
+    try {
+      fs.writeFileSync(
+        path.join(__dirname, 'end.balance.json'),
+        JSON.stringify(out, null, 2)
+      );
+      log('Wrote end.balance.json.');
+    } catch (err) {
+      log(`[save error] ${err.message || err}`);
+    }
+    shutdown('Ctrl+X');
+  };
+
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+  // Raw-mode stdin so we can capture Ctrl+X (0x18) directly.
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.on('data', buf => {
+      for (const byte of buf) {
+        if (byte === 0x18) {
+          // Ctrl+X
+          saveAndQuit();
+          return;
+        }
+        if (byte === 0x03) {
+          // Ctrl+C still works as an immediate quit without saving.
+          shutdown('Ctrl+C');
+          return;
+        }
+      }
+    });
+  }
 })();
